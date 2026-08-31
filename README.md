@@ -9,13 +9,13 @@ Cria uma instância EC2 rodando **k3s** (Kubernetes leve, auto-gerenciado) em ve
 - 1 EC2 `t3.micro` na subnet pública do repositório `oficina-mecanica-infra-db` (localizada via `data source` por tag, sem remote state)
 - k3s instalado via `user_data` no boot (inclui Traefik como ingress controller e ServiceLB, dispensando um Load Balancer gerenciado)
 - 1 Elastic IP associado à instância
-- Security Group: porta 22 (SSH) restrita a um único IP, portas 80/443 abertas (tráfego da aplicação via Traefik), porta 6443 (API do Kubernetes) **fechada para a internet** — deploys são feitos via SSH, não `kubectl` remoto direto (ver ADR correspondente)
-- Par de chaves SSH dedicado (`k3s_ec2_key` / `k3s_ec2_key.pub`) — a chave privada não é versionada
+- Security Group: porta 22 (SSH) aberta (`0.0.0.0/0`, necessário para o runner hospedado do GitHub Actions do repositório principal conseguir se conectar — IP dinâmico, sem CIDR fixo viável), autenticação somente por chave (par dedicado, sem senha); portas 80/443 abertas (tráfego da aplicação via Traefik); porta 6443 (API do Kubernetes) **fechada para a internet** — deploys são feitos via SSH + `kubectl` local ao node, não `kubectl` remoto direto (ver ADR correspondente)
+- Par de chaves SSH dedicado (`k3s_ec2_key` / `k3s_ec2_key.pub`) — a chave privada não é versionada aqui; está armazenada como secret `K3S_SSH_PRIVATE_KEY` no repositório principal ([OficinaMecanica](https://github.com/konrath9/OficinaMecanica)), que é quem efetivamente faz o deploy da aplicação
 
 ```mermaid
 flowchart LR
   Internet -->|80/443| EIP[Elastic IP]
-  Dev["Dev (SSH, IP fixo)"] -->|22| EIP
+  CI["CI/CD do repo OficinaMecanica<br/>(GitHub Actions, IP dinamico)"] -->|22, chave dedicada| EIP
   EIP --> EC2["EC2 t3.micro"]
   subgraph EC2
     K3s["k3s (server)"]
@@ -24,6 +24,8 @@ flowchart LR
   end
   K3s --- Traefik --- App
 ```
+
+> **Nota (AWS Academy Learner Lab):** a instância EC2 e o Elastic IP só existem enquanto a sessão do Lab está ativa — ao expirar/resetar, os recursos somem e o próximo `terraform apply` cria um IP novo. Sempre que isso acontecer, atualize o secret `K3S_HOST` no repositório `OficinaMecanica` com o novo `public_ip` (saída deste `terraform apply`).
 
 ## Como rodar localmente
 

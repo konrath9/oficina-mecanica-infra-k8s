@@ -11,13 +11,7 @@ variable "project_name" {
 }
 
 variable "instance_type" {
-  description = "Tipo da instancia EC2 que hospeda o k3s"
+  description = "Tipo da instancia EC2 que hospeda o k3s. t3.micro (1GB RAM) se mostrou instavel sob a carga de k3s + Traefik + CoreDNS + a aplicacao (SSH parava de responder); t3.small (2GB) da folga de memoria."
   type        = string
-  default     = "t3.micro"
-}
-
-variable "ssh_allowed_cidr" {
-  description = "CIDR autorizado a acessar a porta 22 (IP do desenvolvedor). Atualizar via PR se o IP mudar."
-  type        = string
-  default     = "201.92.37.221/32"
+  default     = "t3.small"
 }
